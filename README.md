@@ -78,4 +78,3 @@ Feel free to fork and make pull requests. If you improve it, we’d love to see 
 This project is licensed under the **Modified MIT License**.
 
 See [LICENSE.md](LICENSE.md) for more information.
-```
