@@ -1,0 +1,13 @@
+MIT-No-Commercial License
+
+Copyright (c) 2025 Quintin (Ker35)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to use, copy, modify, merge, publish, and distribute the Software, subject to the following conditions:
+
+1. The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+2. The Software may not be sold, sublicensed, or used for any commercial purpose by anyone other than the original author.
+
+3. The Software is provided “as is”, without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the Software or the use or other dealings in the Software.
+
+Commercial rights are exclusively reserved by the original author (Quintin / Ker35).

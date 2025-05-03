@@ -1,0 +1,17 @@
+# .gitignore
+
+# Ignore .env file
+.env
+
+# Node.js dependencies
+node_modules/
+
+# PM2 logs
+pm2-logs/
+
+# Logs
+logs/
+
+# OS generated files
+.DS_Store
+Thumbs.db
