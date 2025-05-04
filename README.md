@@ -22,6 +22,11 @@ NameSync is a Node.js-based Discord bot that syncs verified NamelessMC usernames
    ```
    npm install  
    ```
+   
+   Also best to install pm2 (globally) separately
+   ```
+   npm install  pm2 -g
+   ```
 
 3. **Copy environment variables file and configure it:**  
    ```
