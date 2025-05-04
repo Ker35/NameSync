@@ -32,7 +32,6 @@ async function sendChannelMessage(channelId, message) {
 // Start polling NamelessMC API
 async function startPolling() {
   const apiUrl = process.env.NAMEMC_API_URL
-  await sendChannelMessage(channelId, '🔁 Polling the NamelessMC API...');;
   const guildId = process.env.GUILD_ID;
   const apiKey = process.env.NAMEMC_API_KEY;
   const channelId = process.env.NOTIFY_CHANNEL_ID;
