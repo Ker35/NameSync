@@ -11,17 +11,44 @@ const client = new Client({
   ],
 });
 
-client.once('ready', () => {
+// Parse ROLE_MAP from .env into a usable object
+function parseRoleMap(envVar) {
+  const map = {};
+  if (!envVar) return map;
+
+  envVar.split(',').forEach(pair => {
+    const [group, roleId] = pair.split('=');
+    if (group && roleId) {
+      map[group.trim()] = roleId.trim();
+    }
+  });
+
+  return map;
+}
+
+// Load role mapping from environment variable
+const groupToDiscordRoleMap = parseRoleMap(process.env.ROLE_MAP);
+
+client.once('ready', async () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
-  startPolling(); // Start polling when the bot is ready
-  pollUsers(); // Immediately fetch users on bot start
-  setInterval(pollUsers, 1 * 60 * 1000); // 1 minute (in milliseconds) for further updates
-  //setInterval(pollUsers, 10 * 1000); // 10 seconds (in milliseconds) for further updates
+
+  // Register slash commands
+  const commands = [
+    new SlashCommandBuilder()
+      .setName('totalusers')
+      .setDescription('Fetch the total number of users in NamelessMC'),
+  ];
+  await client.application.commands.set(commands);
+  console.log('🔄 Slash commands registered');
+
+  startPolling();
+  pollUsers();
+
   setTimeout(() => {
     console.log("⏱️ 5 minutes have passed. Restarting bot...");
-    client.destroy(); // Kill the bot
-    process.exit(); // Exit the process to allow a restart
-  }, 5 * 60 * 1000); // 5 minutes
+    client.destroy();
+    process.exit();
+  }, 5 * 60 * 1000);
 });
 
 // Send a message to a channel
@@ -108,12 +135,11 @@ async function startPolling() {
           const discordIntegration = user.integrations.find(
             (i) => i.integration === 'Discord' && i.verified
           );
-
+        
           if (discordIntegration) {
             const discordId = discordIntegration.identifier;
-            const namelessUsername = user.username; // NamelessMC username
-          
-            // Update the nickname only if needed
+            const namelessUsername = user.username;
+        
             const username = await updateNickname(discordId, namelessUsername);
             if (username) {
               await sendChannelMessage(
@@ -121,8 +147,10 @@ async function startPolling() {
                 `✅ Updated nickname for Discord ID: ${username} <@${discordId}> to "${namelessUsername}".`
               );
             }
+        
+            await syncUserDiscordRoles(user.id); // Sync roles inside the same loop
           }
-        }
+        }        
 
         // Update the nextPageUrl for pagination (move to next page if available)
         nextPageUrl = responseData.next_page || null; 
@@ -185,6 +213,95 @@ async function pollUsers() {
   }
 }
 
+async function syncUserDiscordRoles(userId) {
+  const apiUrl = process.env.NAMEMC_API_URL;
+  const apiKey = process.env.NAMEMC_API_KEY;
+  const channelId = process.env.NOTIFY_CHANNEL_ID; // The Discord channel ID for role change messages
+
+  try {
+    // Fetch detailed data for a specific user
+    const response = await axios.get(`${apiUrl}/${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+    });
+
+    const userData = response.data;
+
+    // Skip if the user doesn't exist
+    if (!userData.exists) {
+      console.log(`⚠️ Skipping user ID ${userId}: user does not exist`);
+      return;
+    }
+
+    // Get Discord ID directly or fall back to the integrations array
+    let discordId = userData.discord_id;
+
+    if (!discordId && Array.isArray(userData.integrations)) {
+      const discordIntegration = userData.integrations.find(
+        (i) => i.integration === 'Discord' && i.verified
+      );
+      if (discordIntegration) {
+        discordId = discordIntegration.identifier;
+        console.log(`🔄 Retrieved Discord ID from integrations for user ID ${userId}: ${discordId}`);
+      }
+    }
+
+    // Skip if no Discord ID is found
+    if (!discordId) {
+      console.log(`⚠️ Skipping user ID ${userId}: Discord is not linked for this user`);
+      return;
+    }
+
+    // Get user's NamelessMC group names
+    const userGroups = userData.groups.map(group => group.name);
+
+    // Get the guild (server) and fetch the Discord member
+    const guild = client.guilds.cache.get(process.env.GUILD_ID);
+    if (!guild) {
+      console.log('❌ Guild not found.');
+      return;
+    }
+
+    const member = await guild.members.fetch(discordId).catch(() => null);
+    if (!member) {
+      console.log(`❌ Could not find Discord member with ID ${discordId}`);
+      return;
+    }
+
+    // Loop through group-role mappings
+    for (const [groupName, roleId] of Object.entries(groupToDiscordRoleMap)) {
+      const hasGroup = userGroups.includes(groupName);     // Has NamelessMC group?
+      const hasRole = member.roles.cache.has(roleId);      // Has Discord role?
+
+      if (hasGroup && !hasRole) {
+        // Add role if group exists but Discord role is missing
+        await member.roles.add(roleId);
+        console.log(`✅ Added role "${groupName}" to ${member.user.tag}`);
+        await sendChannelMessage(
+          channelId,
+          `✅ Added role "${groupName}" to ${member.user.tag}`
+        );
+      } else if (!hasGroup && hasRole) {
+        // Remove role if group is gone but Discord role is still present
+        await member.roles.remove(roleId);
+        console.log(`🗑️ Removed role "${groupName}" from ${member.user.tag}`);
+        await sendChannelMessage(
+          channelId,
+          `🗑️ Removed role "${groupName}" from ${member.user.tag}`
+        );
+      }
+    }
+
+  } catch (err) {
+    console.error(`❌ Failed to sync roles for NamelessMC user ${userId}:`, err.message);
+    await sendChannelMessage(
+      process.env.NOTIFY_CHANNEL_ID,
+      `❌ Error syncing roles for user ID ${userId}: ${err.message}`
+    );
+  }
+}
+
 // Slash Command to manually send total users in NamelessMC
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isCommand()) return;
@@ -197,18 +314,6 @@ client.on('interactionCreate', async (interaction) => {
       await interaction.reply(`❌ Error: ${err.message}`);
     }
   }
-});
-
-// Register slash commands when the bot starts up
-client.once('ready', async () => {
-  const commands = [
-    new SlashCommandBuilder()
-      .setName('totalusers')
-      .setDescription('Fetch the total number of users in NamelessMC'),
-  ];
-
-  await client.application.commands.set(commands);
-  console.log('🔄 Slash commands registered');
 });
 
 // Log in to Discord

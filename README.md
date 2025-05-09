@@ -38,6 +38,11 @@ NameSync is a Node.js-based Discord bot that syncs verified NamelessMC usernames
    - `NOTIFY_CHANNEL_ID`  
    - `NAMEMC_API_URL`  
    - `NAMEMC_API_KEY`
+   - `ROLE_MAP`
+
+   ⚠️ Important:
+   
+   In ROLE_MAP, each group name (e.g., Member, Mod) must exactly match the group name on your website - including capitalization and spelling or role syncing will not work correctly.
 
 4. **Run using PM2 (auto-restarts every 5 minutes):**  
    ```
